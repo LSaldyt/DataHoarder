@@ -9,7 +9,7 @@ def collect_attrs(item, attributes):
     return tuple(getattr(item, attribute) for attribute in attributes)
 
 def get_UA():
-    with open('etc/user-agent.txt') as UAFile:
+    with open('../etc/user-agent.txt') as UAFile:
         return UAFile.read()
 
 # Indefinitely read stuff off of reddit
@@ -35,16 +35,17 @@ def fetch(silent=False):
                     comments.append(collect_attrs(comment, comment_attrs))
                     for subcomment in comment.replies:
                         comments.append(collect_attrs(comment, comment_attrs))
+
                 if i % group_size == 0:
-                    with bz2.open('serialized/%s' % (i/group_size), 'wb') as picklefile:
+                    print('Writing submission group')
+                    with bz2.open('../serialized/%s' % (i/group_size), 'wb') as picklefile:
                         pickle.dump(submissions, picklefile)
                     submissions = []
-                    print('Wrote Submission Set. Time so far: %s' % (time.time() - start))
-                    break
+                    print('Wrote submission group. Time so far: %s' % (time.time() - start))
                 submissions.append(collect_attrs(submission, submission_attrs))
                 taken   = time.time() - current # "Current"
                 current = time.time()
-                log('Finished processing submission. Total elapsed: %s. For submission serialization: %s' % (current - start, taken))
+                log('Finished processing submission. Total elapsed: %s. For submission: %s' % (current - start, taken))
 
         except HTTPException or APIException as e: # Catch what isn't my fault
             print(e)
