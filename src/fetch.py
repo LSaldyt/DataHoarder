@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-from praw.errors   import HTTPException, APIException, ClientException
 from settings      import submission_attrs, comment_attrs, group_size
 from serialization import serialize, concatenate
 
-import praw, time
+import time
 
 # Helper function for taking attributes from readable reddit objects
 def collect_attrs(item, attributes):
@@ -14,11 +13,17 @@ def get_UA():
     with open('../etc/user-agent.txt') as UAFile:
         return UAFile.read()
 
-# Indefinitely read stuff off of reddit
-def fetch_reddit(silent=False):
+def make_log(silent):
     def log(*args, **kwargs):
         if not silent:
             print(*args, **kwargs)
+    return log
+
+# Indefinitely read stuff off of reddit
+def fetch_reddit(silent=False):
+    from praw.errors   import HTTPException, APIException, ClientException
+    import time
+    log = make_log(silent)
 
     start   = time.time()
     current = start
@@ -59,5 +64,23 @@ def fetch_reddit(silent=False):
             print(e)
             break
 
+# Download popular corpuses (corpi?) from gutenberg website
+def fetch_gutenberg():
+    from gutenberg.acquire import load_etext
+    from gutenberg.cleanup import strip_headers
+    from gutenbergsettings import popularTitles, saveInterval
+
+    start    = time.time()
+    lastsave = start
+
+    for title in popularTitles:
+        text = strip_headers(load_etext(title)).strip()
+        serialize([(title, text)], '../serialized/guten%s' % title)
+        sinceLast = time.time() - lastsave
+        print('%s since last save' % sinceLast)
+        if sinceLast > saveInterval:
+            concatenate('guten')
+            lastsave = time.time()
+
 if __name__ == '__main__':
-    fetch_reddit()
+    fetch_gutenberg()

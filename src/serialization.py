@@ -18,7 +18,8 @@ def concatenate(source='reddit'):
         filenames = [filename for filename in files if filename != '.placeholder' and filename.startswith(source)]
         break
 
-    if len(filenames)>1:
+    print(filenames)
+    if len(filenames) > 1:
         print('More than one file found, concatenating..')
         # Concatenate files
         content = [item for filename in filenames for item in get_content(serialized + filename)] 
