@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-from praw.errors import HTTPException, APIException, ClientException
-from settings    import submission_attrs, comment_attrs, group_size
+from praw.errors   import HTTPException, APIException, ClientException
+from settings      import submission_attrs, comment_attrs, group_size
+from serialization import serialize, concatenate
 
-import praw, time, pickle, bz2
+import praw, time
 
 # Helper function for taking attributes from readable reddit objects
 def collect_attrs(item, attributes):
     return tuple(getattr(item, attribute) for attribute in attributes)
 
+# Get the description of our crawler
 def get_UA():
     with open('../etc/user-agent.txt') as UAFile:
         return UAFile.read()
 
 # Indefinitely read stuff off of reddit
-def fetch(silent=False):
+def fetch_reddit(silent=False):
     def log(*args, **kwargs):
         if not silent:
             print(*args, **kwargs)
@@ -36,12 +38,13 @@ def fetch(silent=False):
                     for subcomment in comment.replies:
                         comments.append(collect_attrs(comment, comment_attrs))
 
-                if i % group_size == 0:
-                    print('Writing submission group')
-                    with bz2.open('../serialized/%s' % (i/group_size), 'wb') as picklefile:
-                        pickle.dump(submissions, picklefile)
+                if i % group_size == 0: # Save submissions every `group_size` (ex 25th) submission
+                    log('Writing submission group')
+                    serialize(submissions, '../serialized/reddit%s' % (i/group_size))
                     submissions = []
-                    print('Wrote submission group. Time so far: %s' % (time.time() - start))
+                    log('Wrote submission group. Time so far: %s' % (time.time() - start))
+                    concatenate('reddit')
+
                 submissions.append(collect_attrs(submission, submission_attrs))
                 taken   = time.time() - current # "Current"
                 current = time.time()
@@ -57,4 +60,4 @@ def fetch(silent=False):
             break
 
 if __name__ == '__main__':
-    fetch()
+    fetch_reddit()

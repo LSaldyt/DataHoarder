@@ -1,29 +1,32 @@
-#!/usr/bin/env python3
 import bz2, pickle, os, time
-from settings import group_size
+from settings import group_size, serialized, temp
+
+def serialize(data, filename):
+    with bz2.open(filename, 'wb') as picklefile:
+        pickle.dump(data, picklefile)
 
 def get_content(filename):
     with bz2.open(filename, 'rb') as picklefile:
         content = pickle.load(picklefile)
     return content
 
-serialized = '../serialized'
-temp = '../temp/'
-
-def concatenate():
+def concatenate(source='reddit'):
+    print('Trying to concatenate files')
     filenames = []
+    # Read top level files only
     for _, _, files in os.walk(serialized):
-        filenames = [filename for filename in files if filename != '.placeholder']
+        filenames = [filename for filename in files if filename != '.placeholder' and filename.startswith(source)]
         break
+
     if len(filenames)>1:
+        print('More than one file found, concatenating..')
         # Concatenate files
         content = [item for filename in filenames for item in get_content(serialized + filename)] 
         for filename in filenames:
             os.rename(serialized + filename, temp + filename)    # Temporarily move files incase something goes wrong
 
         # Save concatenated file
-        with bz2.open(serialized + 'concatenated', 'wb') as picklefile:
-            pickle.dump(content, picklefile)
+        serialize(content, serialized + source)
 
         # Remove temporary backups
         for _, _, files in os.walk(temp):
@@ -31,6 +34,4 @@ def concatenate():
             for filename in filenames:
                 os.remove(temp + filename)
                 break
-    
-if __name__ == '__main__':
-    concatenate()
+        print('Done')
