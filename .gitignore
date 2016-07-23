@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 # Secrets
-etc/info.txt
+etc/user-agent.txt
 
 # Distribution / packaging
 .Python
