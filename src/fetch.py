@@ -111,18 +111,52 @@ def fetch_google(begin='spiders', save_interval=10): # Start crawling from here
             content.clear()
             return [] # There will be plenty of other links, hopefully!
         except Exception as e:
-            print(e)
             print('Unknown exception occurred, but we want to continue anyways, right?')
+            print(e)
             content.clear()
             return []
 
         return [link.get('href') for link in soup.find_all('a')]
 
-    for page in search(begin):
-        remaining.update(set(crawl(page)))
+    remaining = search(begin)
 
-    for page in remaining:
-        remaining.update(set(crawl(page)))
+    while True:
+        next_remaining = set()
+        for page in remaining:
+            next_remaining.update(set(crawl(page)))
+        remaining = next_remaining
+
+def fetch_wikipedia(begin='spiders', save_interval=10):
+    import wikipedia
+    from wikipedia.exceptions import WikipediaException
+    content = dict()
+    seen    = set()
+
+    def crawl(term):
+        print('Crawling for %s' % term)
+        seen.add(term)
+        to_lookup = set()
+        try:
+            for item in wikipedia.search(term, results=10):
+                print('Getting summary on %s' % item)
+                info          = wikipedia.summary(item)
+                content[item] = info
+                to_lookup.update(set([word for word in info if word not in seen]))
+            serialize(content, '../serialized/wiki%s' % len(seen))
+            if int(time.time()) % save_interval == 0:
+                print('Saving')
+                concatenate('wiki')
+        except WikipediaException as e:
+            print(e)
+        return to_lookup
+
+    remaining = crawl(begin)
+    while True:
+        next_remaining = set()
+        for item in remaining:
+            next_remaining.update(crawl(item))
+        remaining = next_remaining
+        
 
 if __name__ == '__main__':
-    fetch_google()
+    fetch_wikipedia()
