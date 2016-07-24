@@ -49,6 +49,7 @@ def fetch_reddit(silent=False):
                     submissions = []
                     log('Wrote submission group. Time so far: %s' % (time.time() - start))
                     concatenate('reddit')
+                    i = 0
 
                 submissions.append(collect_attrs(submission, submission_attrs))
                 taken   = time.time() - current # "Current"
@@ -82,5 +83,46 @@ def fetch_gutenberg():
             concatenate('guten')
             lastsave = time.time()
 
+def fetch_google(begin='spiders', save_interval=10): # Start crawling from here
+    from bs4    import BeautifulSoup
+    from google import search, get_page
+    from urllib.error import HTTPError, URLError, ContentTooShortError
+
+    searched  = set()
+    remaining = set()
+    content   = dict()
+
+    def crawl(page):
+        print('Crawling %s' % page)
+        if int(time.time()) % save_interval == 0:
+            print('Saving')
+            concatenate('google')
+
+        try:
+            searched.add(page)
+            soup = BeautifulSoup(get_page(page), 'lxml')
+            for paragraph in soup.find_all('p'):
+                content[page] = [str(s) for s in paragraph.strings]
+            serialize(content, '../serialized/google%s' % len(searched))
+            content.clear()
+        # If something goes wrong (on API side), throw away everything from this section of the crawl
+        except HTTPError or URLError or ContentTooShortError as e: 
+            print(e)
+            content.clear()
+            return [] # There will be plenty of other links, hopefully!
+        except Exception as e:
+            print(e)
+            print('Unknown exception occurred, but we want to continue anyways, right?')
+            content.clear()
+            return []
+
+        return [link.get('href') for link in soup.find_all('a')]
+
+    for page in search(begin):
+        remaining.update(set(crawl(page)))
+
+    for page in remaining:
+        remaining.update(set(crawl(page)))
+
 if __name__ == '__main__':
-    fetch_gutenberg()
+    fetch_google()
