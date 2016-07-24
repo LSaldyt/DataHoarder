@@ -1,4 +1,5 @@
-# DataHoarder
+# Plutus
 
-Currently only takes reddit posts and serializes them :)
-(More to come)
+Downloads human-readable text from reddit, google, wikipedia, and gutenberg.org to serialize for later use
+
+
