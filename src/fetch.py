@@ -25,6 +25,7 @@ def make_log(silent):
 # Indefinitely read stuff off of reddit
 def fetch_reddit(silent=False):
     from praw.errors   import HTTPException, APIException, ClientException
+    import praw
     import time
     log = make_log(silent)
 
@@ -47,10 +48,10 @@ def fetch_reddit(silent=False):
                         comments.append(collect_attrs(comment, comment_attrs))
 
                 if i % group_size == 0: # Save submissions every `group_size` (ex 25th) submission
-                    log('Writing submission group')
+                    print('Writing submission group for reddit')
                     serialize(submissions, '../serialized/reddit%s' % (i/group_size))
                     submissions = []
-                    log('Wrote submission group. Time so far: %s' % (time.time() - start))
+                    print('Wrote submission group. Time so far: %s' % (time.time() - start))
                     concatenate('reddit')
                     i = 0
 
@@ -109,8 +110,9 @@ def fetch_template(crawl):
 
 def crawl_template(source, get, exceptions, silent=True, interval=10, defaultval=set()):
     def template(item, seen):
-        print('Crawling %s' % item)
-        if int(time.time()) % interval == 0:
+        log = make_log(silent)
+        log('Crawling %s' % item)
+        if len(seen) % interval == 0:
             print('Saving')
             concatenate(source)
         try:
@@ -120,8 +122,7 @@ def crawl_template(source, get, exceptions, silent=True, interval=10, defaultval
             return remaining 
         # If something goes wrong (on API side), throw away everything from this section of the crawl
         except exceptions as e: 
-            if not silent:
-                print(repr(e))
+            log(repr(e))
             return defaultval
         except KeyboardInterrupt:
             concatenate(source)
@@ -156,5 +157,4 @@ crawl_wikipedia = crawl_template('wiki', get_wikipedia, (WikipediaException,))
 fetch_wikipedia = fetch_template(crawl_wikipedia)
 
 if __name__ == '__main__':
-    fetch_google({'https://en.wikipedia.org/wiki/Spider'})
-    fetch_wikipedia({'spiders'})
+    fetch_reddit()
