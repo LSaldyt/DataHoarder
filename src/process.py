@@ -8,10 +8,14 @@ from multiprocess import Pool, TimeoutError
 if __name__ == '__main__':
     pool    = Pool(processes=4)
     futures = []
-    launch = lambda f, args=() : futures.append(pool.apply_async(f, args))
+    def launch(f, args=()):
+        futures.append(pool.apply_async(f, args))
+        print('Launched %s' % f.__name__)
     launch(fetch_google, ({'https://en.wikipedia.org/wiki/Spider'},))
     launch(fetch_reddit, (True, ))
     launch(fetch_wikipedia, ('spiders'))
+    launch(fetch_gutenberg)
+    
     for future in futures:
         future.get()
 

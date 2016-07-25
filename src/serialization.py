@@ -10,6 +10,12 @@ def get_content(filename):
         content = pickle.load(picklefile)
     return content
 
+def merge(filenames):
+    if isinstance(get_content(serialized + filenames[0]), dict):
+        return { key : value for filename in filenames for (key, value) in get_content(serialized + filename).items() }
+    else:
+        return [ item for filename in filenames for item in get_content(serialized + filename) ] 
+
 def concatenate(source='reddit'):
     print('Trying to concatenate files')
     filenames = []
@@ -21,8 +27,8 @@ def concatenate(source='reddit'):
     print(filenames)
     if len(filenames) > 1:
         print('More than one file found, concatenating..')
+        content = merge(filenames)
         # Concatenate files
-        content = [item for filename in filenames for item in get_content(serialized + filename)] 
         for filename in filenames:
             os.rename(serialized + filename, temp + filename)    # Temporarily move files incase something goes wrong
 

@@ -20,8 +20,6 @@ def make_log(silent):
             print(*args, **kwargs)
     return log
 
-
-
 # Indefinitely read stuff off of reddit
 def fetch_reddit(silent=False):
     from praw.errors   import HTTPException, APIException, ClientException
@@ -48,10 +46,10 @@ def fetch_reddit(silent=False):
                         comments.append(collect_attrs(comment, comment_attrs))
 
                 if i % group_size == 0: # Save submissions every `group_size` (ex 25th) submission
-                    print('Writing submission group for reddit')
+                    log('Writing submission group for reddit')
                     serialize(submissions, '../serialized/reddit%s' % (i/group_size))
                     submissions = []
-                    print('Wrote submission group. Time so far: %s' % (time.time() - start))
+                    log('Wrote submission group. Time so far: %s' % (time.time() - start))
                     concatenate('reddit')
                     i = 0
 
@@ -61,13 +59,17 @@ def fetch_reddit(silent=False):
                 log('Finished processing submission. Total elapsed: %s. For submission: %s' % (current - start, taken))
 
         except HTTPException or APIException as e: # Catch what isn't my fault
-            print(e)
+            log(e)
             log('Retrying...')
             time.sleep(1)
 
         except ClientException as e: # Catch what is
-            print(e)
+            log(e)
             break
+
+        except KeyboardInterrupt:
+            concatenate('reddit')
+            sys.exit(0)
 
 # Download popular corpuses (corpi?) from gutenberg website
 def fetch_gutenberg():
@@ -78,14 +80,18 @@ def fetch_gutenberg():
     start    = time.time()
     lastsave = start
 
-    for title in popularTitles:
-        text = strip_headers(load_etext(title)).strip()
-        serialize([(title, text)], '../serialized/guten%s' % title)
-        sinceLast = time.time() - lastsave
-        print('%s since last save' % sinceLast)
-        if sinceLast > saveInterval:
-            concatenate('guten')
-            lastsave = time.time()
+    try:
+        for title in popularTitles:
+            text = strip_headers(load_etext(title)).strip()
+            serialize([(title, text)], '../serialized/guten%s' % title)
+            sinceLast = time.time() - lastsave
+            #print('%s since last save' % sinceLast)
+            if sinceLast > saveInterval:
+                concatenate('guten')
+                lastsave = time.time()
+    except KeyboardInterrupt:
+        concatenate('guten')
+        sys.exit(0)
 
 @contextmanager
 def redirect(filename):
@@ -157,4 +163,4 @@ crawl_wikipedia = crawl_template('wiki', get_wikipedia, (WikipediaException,))
 fetch_wikipedia = fetch_template(crawl_wikipedia)
 
 if __name__ == '__main__':
-    fetch_reddit()
+    fetch_wikipedia('spider')
