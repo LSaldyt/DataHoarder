@@ -14,65 +14,71 @@ def get_UA():
     with open('../etc/user-agent.txt') as UAFile:
         return UAFile.read()
 
-def make_log(silent):
-    def log(*args, **kwargs):
-        if not silent:
-            print(*args, **kwargs)
-    return log
+@contextmanager
+def redirect(filename=None):
+    if filename is not None:
+        with open(filename, 'w') as output:
+            sys.stdout = output
+            try:
+                yield
+            finally:
+                sys.stdout = sys.__stdout__
+    else:
+        yield
 
 # Indefinitely read stuff off of reddit
-def fetch_reddit(silent=False):
+def fetch_reddit(filename=None):
     from praw.errors   import HTTPException, APIException, ClientException
     import praw
     import time
-    log = make_log(silent)
 
     start   = time.time()
     current = start
     i = 0
 
-    while True:
-        try:
-            r = praw.Reddit(get_UA()) # Read the file in etc/user-agent
-            submissions = []
-            for submission in praw.helpers.submission_stream(r, 'all'):
-                i += 1
+    with redirect(filename):
+        while True:
+            try:
+                r = praw.Reddit(get_UA()) # Read the file in etc/user-agent
+                submissions = []
+                for submission in praw.helpers.submission_stream(r, 'all'):
+                    i += 1
 
-                log('Opened submission %s' % submission.title)
-                comments = []
-                for comment in submission.comments:
-                    comments.append(collect_attrs(comment, comment_attrs))
-                    for subcomment in comment.replies:
+                    print('Opened submission %s' % submission.title)
+                    comments = []
+                    for comment in submission.comments:
                         comments.append(collect_attrs(comment, comment_attrs))
+                        for subcomment in comment.replies:
+                            comments.append(collect_attrs(comment, comment_attrs))
 
-                if i % group_size == 0: # Save submissions every `group_size` (ex 25th) submission
-                    log('Writing submission group for reddit')
-                    serialize(submissions, '../serialized/reddit%s' % (i/group_size))
-                    submissions = []
-                    log('Wrote submission group. Time so far: %s' % (time.time() - start))
-                    concatenate('reddit')
-                    i = 0
+                    if i % group_size == 0: # Save submissions every `group_size` (ex 25th) submission
+                        print('Writing submission group for reddit')
+                        serialize(submissions, '../serialized/reddit%s' % (i/group_size))
+                        submissions = []
+                        print('Wrote submission group. Time so far: %s' % (time.time() - start))
+                        concatenate('reddit')
+                        i = 0
 
-                submissions.append(collect_attrs(submission, submission_attrs))
-                taken   = time.time() - current # "Current"
-                current = time.time()
-                log('Finished processing submission. Total elapsed: %s. For submission: %s' % (current - start, taken))
+                    submissions.append(collect_attrs(submission, submission_attrs))
+                    taken   = time.time() - current # "Current"
+                    current = time.time()
+                    print('Finished processing submission. Total elapsed: %s. For submission: %s' % (current - start, taken))
 
-        except HTTPException or APIException as e: # Catch what isn't my fault
-            log(e)
-            log('Retrying...')
-            time.sleep(1)
+            except HTTPException or APIException as e: # Catch what isn't my fault
+                print(e)
+                print('Retrying...')
+                time.sleep(1)
 
-        except ClientException as e: # Catch what is
-            log(e)
-            break
+            except ClientException as e: # Catch what is
+                print(e)
+                break
 
-        except KeyboardInterrupt:
-            concatenate('reddit')
-            sys.exit(0)
+            except KeyboardInterrupt:
+                concatenate('reddit')
+                sys.exit(0)
 
 # Download popular corpuses (corpi?) from gutenberg website
-def fetch_gutenberg():
+def fetch_gutenberg(filename=None):
     from gutenberg.acquire import load_etext
     from gutenberg.cleanup import strip_headers
     from gutenbergsettings import popularTitles, saveInterval
@@ -80,44 +86,36 @@ def fetch_gutenberg():
     start    = time.time()
     lastsave = start
 
-    try:
-        for title in popularTitles:
-            text = strip_headers(load_etext(title)).strip()
-            serialize([(title, text)], '../serialized/guten%s' % title)
-            sinceLast = time.time() - lastsave
-            #print('%s since last save' % sinceLast)
-            if sinceLast > saveInterval:
-                concatenate('guten')
-                lastsave = time.time()
-    except KeyboardInterrupt:
-        concatenate('guten')
-        sys.exit(0)
-
-@contextmanager
-def redirect(filename):
-    with open(filename, 'w') as output:
-        sys.stdout = output
+    with redirect(filename):
         try:
-            yield
-        finally:
-            sys.stdout = sys.__stdout__
+            for title in popularTitles:
+                text = strip_headers(load_etext(title)).strip()
+                serialize([(title, text)], '../serialized/guten%s' % title)
+                sinceLast = time.time() - lastsave
+                print('%s since last save' % sinceLast)
+                if sinceLast > saveInterval:
+                    concatenate('guten')
+                    lastsave = time.time()
+        except KeyboardInterrupt:
+            concatenate('guten')
+            sys.exit(0)
 
 
 def fetch_template(crawl):
-    def template(remaining):
+    def template(remaining, filename=None):
         seen = set()
-        while True:
-            next_remaining = set()
-            for item in remaining:
-                next_remaining.update(crawl(item, seen))
-            remaining = next_remaining
+        with redirect(filename):
+            while True:
+                next_remaining = set()
+                for item in remaining:
+                    next_remaining.update(crawl(item, seen))
+                remaining = next_remaining
     return template
 
 
 def crawl_template(source, get, exceptions, silent=True, interval=10, defaultval=set()):
     def template(item, seen):
-        log = make_log(silent)
-        log('Crawling %s' % item)
+        print('Crawling %s' % item)
         if len(seen) % interval == 0:
             print('Saving')
             concatenate(source)
@@ -128,7 +126,7 @@ def crawl_template(source, get, exceptions, silent=True, interval=10, defaultval
             return remaining 
         # If something goes wrong (on API side), throw away everything from this section of the crawl
         except exceptions as e: 
-            log(repr(e))
+            print(repr(e))
             return defaultval
         except KeyboardInterrupt:
             concatenate(source)
@@ -163,4 +161,4 @@ crawl_wikipedia = crawl_template('wiki', get_wikipedia, (WikipediaException,))
 fetch_wikipedia = fetch_template(crawl_wikipedia)
 
 if __name__ == '__main__':
-    fetch_wikipedia('spider')
+    fetch_wikipedia({'spider'})

@@ -11,6 +11,9 @@ serialized/*
 # Secrets
 etc/user-agent.txt
 
+# Logging
+log/*
+
 # Distribution / packaging
 .Python
 env/

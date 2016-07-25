@@ -11,10 +11,10 @@ if __name__ == '__main__':
     def launch(f, args=()):
         futures.append(pool.apply_async(f, args))
         print('Launched %s' % f.__name__)
-    launch(fetch_google, ({'https://en.wikipedia.org/wiki/Spider'},))
-    launch(fetch_reddit, (True, ))
-    launch(fetch_wikipedia, ('spiders'))
-    launch(fetch_gutenberg)
+    launch(fetch_google, ({'https://en.wikipedia.org/wiki/Spider'}, '../log/google'))
+    launch(fetch_reddit, ('../log/reddit'))
+    launch(fetch_wikipedia, ({'spiders'}, '../log/wiki'))
+    launch(fetch_gutenberg, ('../log/guten'))
     
     for future in futures:
         future.get()
